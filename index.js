@@ -77,31 +77,32 @@ module.exports = params => {
 
                 let unexpectedPackets;
 
-                let responseData = new Buffer(0);
+                let responseData = Buffer.alloc(0);
                 let reqId = _getNextPacketId();
                 let req = packet.request({
                     id: reqId,
                     type: packet.SERVERDATA_EXECCOMMAND,
                     body: text
                 });
-                let ackId = _getNextPacketId();
-                let ack = packet.request({
-                    id: ackId,
-                    type: packet.SERVERDATA_EXECCOMMAND,
-                    body: ''
-                });
+                
                 _connection.send(req);
-                _connection.send(ack);
                 _connection.getData(dataHandler).then(done);
 
                 function dataHandler(data) {
                     let res = packet.response(data);
-                    if (res.id === ackId) {
-                        return false;
-                    } else if (res.id === reqId) {
+                    if (res.id === reqId) {
                         // More data to come
                         responseData = Buffer.concat([responseData, res.payload], responseData.length + res.payload.length);
-                        return true;
+                        
+                        let len = res.size;
+
+                        if (len >= 10 && responseData.length >= len - 14) {
+                        	return false;
+                        }
+                        else {
+                        	return true;
+                        }
+                        
                     } else {
                         return handleUnexpectedData(res.id);
                     }
